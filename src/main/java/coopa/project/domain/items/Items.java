@@ -10,7 +10,7 @@ import lombok.*;
 @Data
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Items {
+public class   Items {
     @Id
     private int itemId; // 상품 아이디
 

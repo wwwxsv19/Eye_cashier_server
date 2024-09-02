@@ -1,9 +1,12 @@
 package coopa.project.domain.transaction.controller;
 
+import coopa.project.domain.account.service.UserService;
+import coopa.project.domain.items.Items;
 import coopa.project.domain.items.service.ItemsService;
 import coopa.project.domain.transaction.controller.dto.PayDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,6 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class TransactionController {
+    private final UserService userService;
     private final ItemsService itemsService;
 
     // 결제
@@ -25,25 +29,39 @@ public class TransactionController {
     public ResponseEntity<?> pay(@RequestBody PayDto.PayRequest request) {
         log.info("Payment Started");
 
-        List<PayDto.Pay> payList = request.getPayReqList();
         String userCode = request.getUserCode();
+        List<PayDto.Pay> payList = request.getPayReqList();
 
-        List<PayDto.Result> resultList = new ArrayList<>();
-
-        for (PayDto.Pay pay : payList) {
-            int itemId = pay.getItemId();
-
-            /* User Pay Logic */
-            /* Receipt Logic */
-
-            PayDto.Result result = PayDto.Result.builder()
-                    .itemId(itemId)
-                    .isSuccess(true)
-                    .build();
-
-            resultList.add(result);
+        // 사용자 존재 여부 검사
+        if (!userService.checkUser(userCode)) {
+            return ResponseEntity.status(404).body("User Doesn't Exists");
         }
 
-        return ResponseEntity.ok().body(resultList);
+        // 결과 저장할 리스트
+        List<PayDto.Result> resultList = new ArrayList<>();
+
+        try {
+            for (PayDto.Pay pay : payList) {
+                int itemId = pay.getItemId();
+                int itemQty = pay.getItemQty();
+
+                log.info("find item");
+                Items item = itemsService.getOne(itemId);
+
+                log.info("pay");
+                userService.payUser(userCode, item.getItemPrice() * itemQty);
+
+                PayDto.Result result = PayDto.Result.builder()
+                        .itemId(itemId)
+                        .isSuccess(true)
+                        .build();
+
+                resultList.add(result);
+            }
+
+            return ResponseEntity.ok().body(resultList);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error while paying");
+        }
     }
 }

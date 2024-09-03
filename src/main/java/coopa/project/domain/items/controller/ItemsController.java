@@ -5,11 +5,16 @@ import coopa.project.domain.items.controller.dto.ItemDto;
 import coopa.project.domain.items.service.ItemsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.http.*;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +25,7 @@ import java.util.Map;
 @Slf4j
 public class ItemsController {
     private final ItemsService itemsService;
+    private final RestTemplateBuilder restTemplate;
 
     // 상품 직접 입력 > 전체 목록
     @GetMapping("/")
@@ -44,36 +50,68 @@ public class ItemsController {
         }
     }
 
-    // 스캔된 JSON 받아서 아이템 리스트로 반환
+    /*
+    이미지 파일 ( BASE64로 인코딩 ) 받아서 AI 에게 토스
+    스캔된 JSON 받아서 아이템 리스트로 반환
+    */
     @PostMapping("/scan")
-    public ResponseEntity<?> getScanData(@RequestBody ItemDto.ScanRequest request) {
-        log.info("Get Scan Item");
+    public ResponseEntity<?> getScanData(@RequestBody ItemDto.Request request) throws JSONException {
+        log.info("Get Image to String and Change Json");
 
-        List<ItemDto.Scan> requestList = request.getScanList();
+        String string = request.getImage();
 
-        Map<Integer, ItemDto.Result> resultMap = new HashMap<>();
+        log.info("Image String : {}", string);
+
+        String url = "http://10.150.149.6:8000/scan?img="; // 대충 AI url 일 듯
+
+
+        byte[] imageBytes = Base64.getDecoder().decode(string);
+        log.info("Decoded : {}", imageBytes);
+
+        // 멀티파트 폼 데이터 생성
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", new org.springframework.core.io.ByteArrayResource(imageBytes) {
+            @Override
+            public String getFilename() {
+                return "image.jpg"; // 파일 이름 설정
+            }
+        });
+
+        // 헤더 설정
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+        HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+        ResponseEntity<ItemDto.ScanRequest> aiResponse = restTemplate.build().postForEntity(url, requestEntity, ItemDto.ScanRequest.class);
+        log.info("{}", aiResponse.toString());
+        List<ItemDto.Scan> resultList = aiResponse.getBody().getObjects();
+
+        log.info("Get Image and Get Scan data");
+
+        Map<String, ItemDto.Result> resultMap = new HashMap<>();
 
         log.info("Check Does ScanedItem Exists from itemList");
 
-        for (ItemDto.Scan scan : requestList) {
-            int itemId = scan.getId();
+        for (ItemDto.Scan scan : resultList) {
+            String itemName = scan.getName();
 
-            if (resultMap.containsKey(itemId)) {
-                ItemDto.Result result = resultMap.get(itemId);
+            if (resultMap.containsKey(itemName)) {
+                ItemDto.Result result = resultMap.get(itemName);
                 result.addQty();
-                resultMap.replace(itemId, result);
+                resultMap.replace(itemName, result);
             } else {
                 try {
-                    Items item = itemsService.getOne(itemId);
+                    Items item = itemsService.getOneName(itemName);
 
                     ItemDto.Result result = ItemDto.Result.builder()
-                            .itemId(itemId)
+                            .itemId(item.getItemId())
                             .itemName(item.getItemName())
                             .itemPrice(item.getItemPrice())
                             .Qty(1)
                             .build();
 
-                    resultMap.put(itemId, result);
+                    resultMap.put(itemName, result);
                 } catch (Exception e) {
                     continue;
                 }

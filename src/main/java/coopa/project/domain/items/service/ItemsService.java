@@ -18,6 +18,11 @@ public class ItemsService {
     private final ItemsRepository itemsRepository;
 
     @Transactional
+    public Items getOneName(String itemName) throws Exception {
+        return itemsRepository.findByItemName(itemName);
+    }
+
+    @Transactional
     public Items getOne(int itemId) throws Exception {
         return itemsRepository.findById(itemId)
                 .orElseThrow();

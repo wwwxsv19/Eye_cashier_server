@@ -32,7 +32,7 @@ public class SecurityConfig {
 
                                 .requestMatchers("/transaction/**").permitAll()
 
-                                .anyRequest().authenticated())
+                                .anyRequest().permitAll())
 
                 .sessionManagement(
                         session -> session

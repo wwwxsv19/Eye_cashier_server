@@ -28,6 +28,7 @@ public class PayDto {
     @Builder
     @Getter
     public static class PayResponse {
+        private int userPoint;
         private List<Result> resultList;
     }
 }

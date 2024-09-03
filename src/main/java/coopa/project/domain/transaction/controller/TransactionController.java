@@ -1,5 +1,6 @@
 package coopa.project.domain.transaction.controller;
 
+import coopa.project.domain.account.User;
 import coopa.project.domain.account.service.UserService;
 import coopa.project.domain.items.Items;
 import coopa.project.domain.items.service.ItemsService;
@@ -58,8 +59,15 @@ public class TransactionController {
 
                 resultList.add(result);
             }
+            User user = userService.getUser(userCode);
+            int userPoint = user.getUserPoint();
 
-            return ResponseEntity.ok().body(resultList);
+            PayDto.PayResponse response = PayDto.PayResponse.builder()
+                    .userPoint(userPoint)
+                    .resultList(resultList)
+                    .build();
+
+            return ResponseEntity.ok().body(response);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error while paying");
         }

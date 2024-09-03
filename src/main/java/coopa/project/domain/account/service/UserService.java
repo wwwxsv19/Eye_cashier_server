@@ -20,6 +20,11 @@ public class UserService {
     }
 
     @Transactional
+    public User getUser(String userCode) {
+        return userRepository.findUserByUserCode(userCode);
+    }
+
+    @Transactional
     public void payUser(String userCode, int payPoint) {
         User user = userRepository.findUserByUserCode(userCode);
 

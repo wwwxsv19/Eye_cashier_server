@@ -10,7 +10,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/item")
@@ -49,22 +51,41 @@ public class ItemsController {
 
         List<ItemDto.Scan> requestList = request.getScanList();
 
-        List<Items> itemList = new ArrayList<>();
+        Map<Integer, ItemDto.Result> resultMap = new HashMap<>();
 
         log.info("Check Does ScanedItem Exists from itemList");
 
         for (ItemDto.Scan scan : requestList) {
             int itemId = scan.getId();
-            try {
-                Items item = itemsService.getOne(itemId);
-                itemList.add(item);
-            } catch (Exception e) {
-                continue;
+
+            if (resultMap.containsKey(itemId)) {
+                ItemDto.Result result = resultMap.get(itemId);
+                result.addQty();
+                resultMap.replace(itemId, result);
+            } else {
+                try {
+                    Items item = itemsService.getOne(itemId);
+
+                    ItemDto.Result result = ItemDto.Result.builder()
+                            .itemId(itemId)
+                            .itemName(item.getItemName())
+                            .itemPrice(item.getItemPrice())
+                            .Qty(1)
+                            .build();
+
+                    resultMap.put(itemId, result);
+                } catch (Exception e) {
+                    continue;
+                }
             }
         }
 
         log.info("Check ScanList Finish");
-        
-        return ResponseEntity.ok().body(itemList);
+        ItemDto.ScanResponse response = ItemDto.ScanResponse.builder()
+                .resultList(resultMap)
+                .build();
+
+
+        return ResponseEntity.ok().body(response);
     }
 }

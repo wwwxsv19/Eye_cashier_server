@@ -64,8 +64,8 @@ public class ItemsController {
 
         String url = "http://10.150.149.6:8000/scan?img="; // 대충 AI url 일 듯
 
-
-        byte[] imageBytes = Base64.getDecoder().decode(string);
+        String imageUrl = string.split(",")[1];
+        byte[] imageBytes = Base64.getDecoder().decode(imageUrl);
         log.info("Decoded : {}", imageBytes);
 
         // 멀티파트 폼 데이터 생성
@@ -116,6 +116,8 @@ public class ItemsController {
                     continue;
                 }
             }
+
+            log.info("itemName : {}", itemName);
         }
 
         log.info("Check ScanList Finish");
